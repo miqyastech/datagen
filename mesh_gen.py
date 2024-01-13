@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pandas as pd
 import trimesh as tm
 from smpl.smpl_webuser.serialization import load_model
@@ -21,6 +22,9 @@ elif MODEL_CHOICE == 2:
 
 model = load_model(os.path.join('./smpl/models', MODEL_FILENAME))
 
+volumes = []
+heights = []
+
 # We now traverse through each row of the dataframe and generate the meshes
 for ix, row in df.iterrows():
     # Extracting the parameters from the row
@@ -36,6 +40,26 @@ for ix, row in df.iterrows():
         'vertices': model.r,
         'faces': model.f
     }
+    
+    min_y = np.min(model.r[:, 1])
+    max_y = np.max(model.r[:, 1])
+    
+    height = round(abs(max_y - min_y), 4)
+    heights.append(height)
+    
     mesh = tm.load(mesh_dict, process=False, maintain_order=True)
+    
+    volumes.append(mesh.volume)
+    
     # Saving the mesh
     mesh.export(os.path.join(OUTPUT_DIR, fname))
+    
+    
+# Saving the volumes and heights to a csv file
+vh_df = pd.DataFrame({
+    'synth_name': df['synth_name'],
+    'volume': volumes,
+    'height': heights
+})
+
+vh_df.to_csv(os.path.join(OUTPUT_DIR, 'volumes_heights.csv'), index=False)
